@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.build/
+.dist/
+
+# Virtualenvs
+.venv/
+venv/
+.env/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Tooling
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Database
+*.sqlite
+*.sqlite3
+
+# Alembic
+alembic.ini
+
+# Docker
+*.pid
+
+# Environment files
+.env.local
+.env.*

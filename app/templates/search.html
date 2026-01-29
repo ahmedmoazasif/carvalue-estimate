@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CarValue Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Market Value Estimate</h1>
+
+      {% if errors %}
+        <div class="alert">
+          <ul>
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('web.estimate') }}" class="form">
+        <label>
+          Year
+          <input type="number" name="year" required value="{{ form.year if form else '' }}" />
+        </label>
+        <label>
+          Make
+          <input type="text" name="make" required value="{{ form.make if form else '' }}" />
+        </label>
+        <label>
+          Model
+          <input type="text" name="model" required value="{{ form.model if form else '' }}" />
+        </label>
+        <label>
+          Mileage (optional)
+          <input type="text" name="mileage" value="{{ form.mileage if form else '' }}" />
+        </label>
+        <button type="submit">Estimate</button>
+      </form>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CarValue Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Estimate Results</h1>
+      <p class="subtitle">{{ year }} {{ make }} {{ model }}</p>
+
+      {% if estimate is none %}
+        <div class="alert">No comparable listings found.</div>
+      {% else %}
+        <div class="estimate">
+          Estimated Market Value: <span>${{ "{:,.0f}".format(estimate) }}</span>
+        </div>
+      {% endif %}
+
+      {% if comparables %}
+        <h2>Comparable Listings</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Price</th>
+              <th>Mileage</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for comp in comparables %}
+              <tr>
+                <td>{{ comp.vehicle }}</td>
+                <td>${{ "{:,.0f}".format(comp.price) }}</td>
+                <td>{{ "{:,.0f}".format(comp.mileage) }}</td>
+                <td>{{ comp.location }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+
+      <a href="{{ url_for('web.search') }}" class="back-link">New search</a>
+    </main>
+  </body>
+</html>
