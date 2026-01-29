@@ -1,4 +1,4 @@
-"""initial
+"""raw listings table
 
 Revision ID: 0001_initial
 Revises: None
@@ -16,61 +16,34 @@ depends_on = None
 
 def upgrade() -> None:
     op.create_table(
-        "vehicles",
-        sa.Column("vin", sa.String(), primary_key=True),
-        sa.Column("year", sa.Integer(), nullable=False),
-        sa.Column("make", sa.String(), nullable=False),
-        sa.Column("model", sa.String(), nullable=False),
-        sa.Column("trim", sa.String()),
-        sa.Column("style", sa.String()),
-        sa.Column("driven_wheels", sa.String()),
-        sa.Column("engine", sa.String()),
-        sa.Column("fuel_type", sa.String()),
-        sa.Column("exterior_color", sa.String()),
-        sa.Column("interior_color", sa.String()),
-    )
-    op.create_index(
-        "ix_vehicles_year_make_model",
-        "vehicles",
-        ["year", "make", "model"],
-    )
-
-    op.create_table(
-        "dealers",
-        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("name", sa.String(), nullable=False),
-        sa.Column("street", sa.String()),
-        sa.Column("city", sa.String()),
-        sa.Column("state", sa.String()),
-        sa.Column("zip", sa.String()),
-        sa.Column("website", sa.String()),
-    )
-
-    op.create_table(
-        "listings",
-        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
-        sa.Column("vin", sa.String(), sa.ForeignKey("vehicles.vin"), nullable=False),
-        sa.Column("dealer_id", sa.Integer(), sa.ForeignKey("dealers.id")),
-        sa.Column("price", sa.Numeric()),
-        sa.Column("mileage", sa.Integer()),
+        "market_listings_raw",
+        sa.Column("vin", sa.Text()),
+        sa.Column("year", sa.SmallInteger()),
+        sa.Column("make", sa.Text()),
+        sa.Column("model", sa.Text()),
+        sa.Column("trim", sa.Text()),
+        sa.Column("dealer_name", sa.Text()),
+        sa.Column("dealer_street", sa.Text()),
+        sa.Column("dealer_city", sa.Text()),
+        sa.Column("dealer_state", sa.Text()),
+        sa.Column("dealer_zip", sa.Text()),
+        sa.Column("listing_price", sa.Numeric()),
+        sa.Column("listing_mileage", sa.Integer()),
         sa.Column("used", sa.Boolean()),
         sa.Column("certified", sa.Boolean()),
+        sa.Column("style", sa.Text()),
+        sa.Column("driven_wheels", sa.Text()),
+        sa.Column("engine", sa.Text()),
+        sa.Column("fuel_type", sa.Text()),
+        sa.Column("exterior_color", sa.Text()),
+        sa.Column("interior_color", sa.Text()),
+        sa.Column("seller_website", sa.Text()),
         sa.Column("first_seen_date", sa.Date()),
         sa.Column("last_seen_date", sa.Date()),
-        sa.Column("listing_status", sa.String()),
+        sa.Column("dealer_vdp_last_seen_date", sa.Date()),
+        sa.Column("listing_status", sa.Text()),
     )
-    op.create_index("ix_listings_price", "listings", ["price"])
-    op.create_index("ix_listings_mileage", "listings", ["mileage"])
-    op.create_index("ix_listings_listing_status", "listings", ["listing_status"])
-    op.create_index("ix_listings_last_seen_date", "listings", ["last_seen_date"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_listings_last_seen_date", table_name="listings")
-    op.drop_index("ix_listings_listing_status", table_name="listings")
-    op.drop_index("ix_listings_mileage", table_name="listings")
-    op.drop_index("ix_listings_price", table_name="listings")
-    op.drop_table("listings")
-    op.drop_table("dealers")
-    op.drop_index("ix_vehicles_year_make_model", table_name="vehicles")
-    op.drop_table("vehicles")
+    op.drop_table("market_listings_raw")
