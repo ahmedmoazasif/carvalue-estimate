@@ -39,8 +39,6 @@ htmlcov/
 *.sqlite
 *.sqlite3
 
-# Alembic
-alembic.ini
 
 # Docker
 *.pid
