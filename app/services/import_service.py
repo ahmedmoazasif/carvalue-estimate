@@ -76,9 +76,31 @@ class ImportService:
         except ValueError:
             return None
 
+    @staticmethod
+    def _dealer_key(
+        name: str,
+        street: Optional[str],
+        city: Optional[str],
+        state: Optional[str],
+        zip_code: Optional[str],
+        website: Optional[str],
+    ) -> tuple[str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        return (
+            name.strip().lower(),
+            street.strip().lower() if street else None,
+            city.strip().lower() if city else None,
+            state.strip().lower() if state else None,
+            zip_code.strip().lower() if zip_code else None,
+            website.strip().lower() if website else None,
+        )
+
     def import_rows(self, rows: Iterable[str], dry_run: bool = False) -> ImportStats:
         stats = ImportStats()
         batch: list[Listing] = []
+        seen_vins: set[str] = set()
+        dealer_cache: dict[
+            tuple[str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]], int
+        ] = {}
 
         for line in rows:
             stats.total_rows += 1
@@ -149,32 +171,51 @@ class ImportService:
                 stats.inserted_rows += 1
                 continue
 
-            dealer = self.dealer_repo.find_or_create(
-                name=dealer_name.strip(),
-                street=dealer_street.strip() or None,
-                city=dealer_city.strip() or None,
-                state=dealer_state.strip() or None,
-                zip_code=dealer_zip.strip() or None,
-                website=seller_website.strip() or None,
+            dealer_street_val = dealer_street.strip() or None
+            dealer_city_val = dealer_city.strip() or None
+            dealer_state_val = dealer_state.strip() or None
+            dealer_zip_val = dealer_zip.strip() or None
+            seller_website_val = seller_website.strip() or None
+            dealer_key = self._dealer_key(
+                dealer_name,
+                dealer_street_val,
+                dealer_city_val,
+                dealer_state_val,
+                dealer_zip_val,
+                seller_website_val,
             )
+            dealer_id = dealer_cache.get(dealer_key)
+            if dealer_id is None:
+                dealer = self.dealer_repo.find_or_create(
+                    name=dealer_name.strip(),
+                    street=dealer_street_val,
+                    city=dealer_city_val,
+                    state=dealer_state_val,
+                    zip_code=dealer_zip_val,
+                    website=seller_website_val,
+                )
+                dealer_id = dealer.id
+                dealer_cache[dealer_key] = dealer_id
 
-            vehicle = self.vehicle_repo.get_or_create(
-                vin=vin,
-                year=year_val,
-                make=make_val,
-                model=model_val,
-                trim=trim_val,
-                style=style.strip() or None,
-                driven_wheels=driven_wheels.strip() or None,
-                engine=engine.strip() or None,
-                fuel_type=fuel_type.strip() or None,
-                exterior_color=exterior_color.strip() or None,
-                interior_color=interior_color.strip() or None,
-            )
+            if vin not in seen_vins:
+                self.vehicle_repo.get_or_create(
+                    vin=vin,
+                    year=year_val,
+                    make=make_val,
+                    model=model_val,
+                    trim=trim_val,
+                    style=style.strip() or None,
+                    driven_wheels=driven_wheels.strip() or None,
+                    engine=engine.strip() or None,
+                    fuel_type=fuel_type.strip() or None,
+                    exterior_color=exterior_color.strip() or None,
+                    interior_color=interior_color.strip() or None,
+                )
+                seen_vins.add(vin)
 
             listing = Listing(
-                vin=vehicle.vin,
-                dealer_id=dealer.id,
+                vin=vin,
+                dealer_id=dealer_id,
                 price=price_val,
                 mileage=mileage_val,
                 used=used_val,
