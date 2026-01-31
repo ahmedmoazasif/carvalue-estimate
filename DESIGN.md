@@ -29,15 +29,15 @@ The goal of this project is to build a **simple internal web interface** that es
 flowchart TD
     Browser -->|"HTTP (GET)"| Flask["Flask Web Server"]
     Flask -->|"SQL Queries"| Postgres[("PostgreSQL Database")]
-    FileURL@{shape: cloud} -->|"Web Read Stream"|IngestionScript["Ingestion Script"]
-    IngestionScript-->|"Batch Operations"|Postgres
+    FileURL@{shape: cloud} -->|"Download File"|DataFile["Raw Data File"]
+    DataFile-->|"Postgres \copy"|Postgres
 ```
 
 ### Components
 
 - Flask application (routes, templates)
 - PostgreSQL database
-- One-time batch data ingestion script
+- One-time batch data ingestion
 - Server-rendered HTML templates (no frontend framework)
 
 ---
