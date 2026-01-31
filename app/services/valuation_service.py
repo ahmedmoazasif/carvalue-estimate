@@ -5,6 +5,7 @@ from decimal import Decimal
 from statistics import mean
 from typing import Optional
 
+import numpy as np
 from sqlalchemy.orm import Session
 
 from app.repositories.listing_repo import ListingRepository
@@ -30,22 +31,29 @@ class ValuationService:
     def __init__(
         self,
         session: Session,
-        outlier_trim_pct: float = 0.05,
     ):
         self.session = session
-        self.outlier_trim_pct = outlier_trim_pct
         self.repo = ListingRepository(session)
 
     @staticmethod
     def _trim_outliers(
-        sorted_rows: list[tuple], trim_pct: float
+        rows: list[tuple], stddevs: float = 3.0
     ) -> list[tuple]:
-        if not sorted_rows:
+        if not rows:
             return []
-        trim_count = int(len(sorted_rows) * trim_pct)
-        if trim_count == 0 or len(sorted_rows) - (trim_count * 2) < 3:
-            return sorted_rows
-        return sorted_rows[trim_count:-trim_count]
+        prices = [float(row[0].price)
+                  for row in rows if row[0].price is not None]
+        if not prices:
+            return rows
+        mean_price = float(np.mean(prices))
+        std_price = float(np.std(prices))
+        if std_price == 0:
+            return rows
+        lower = mean_price - (stddevs * std_price)
+        upper = mean_price + (stddevs * std_price)
+        filtered = [row for row in rows if lower <=
+                    float(row[0].price) <= upper]
+        return filtered or rows
 
     @staticmethod
     def _round_to_nearest_100(value: Decimal) -> Decimal:
@@ -56,22 +64,12 @@ class ValuationService:
         mileages: list[int], prices: list[Decimal]
     ) -> tuple[Decimal, Decimal]:
         if not mileages or not prices or len(mileages) != len(prices):
-            raise ValueError("Mileage and price lists must be the same length.")
-
-        n = Decimal(len(mileages))
-        sum_x = Decimal(sum(mileages))
-        sum_y = sum(prices, Decimal("0"))
-        sum_xx = sum(Decimal(mileage) * Decimal(mileage) for mileage in mileages)
-        sum_xy = sum(
-            Decimal(mileage) * price for mileage, price in zip(mileages, prices)
-        )
-        denom = (n * sum_xx) - (sum_x * sum_x)
-        if denom == 0:
-            slope = Decimal("0")
-        else:
-            slope = ((n * sum_xy) - (sum_x * sum_y)) / denom
-        intercept = (sum_y - (slope * sum_x)) / n
-        return slope, intercept
+            raise ValueError(
+                "Mileage and price lists must be the same length.")
+        x = np.array(mileages, dtype=float)
+        y = np.array([float(price) for price in prices], dtype=float)
+        slope, intercept = np.polyfit(x, y, deg=1)
+        return Decimal(str(slope)), Decimal(str(intercept))
 
     def estimate_value(
         self,
@@ -89,7 +87,7 @@ class ValuationService:
             return ValuationResult(estimate=None, comparables=[])
 
         sorted_rows = sorted(rows, key=lambda row: row[0].price)
-        trimmed_rows = self._trim_outliers(sorted_rows, self.outlier_trim_pct)
+        trimmed_rows = self._trim_outliers(sorted_rows, 1.0)
         if not trimmed_rows:
             return ValuationResult(estimate=None, comparables=[])
 
@@ -103,17 +101,23 @@ class ValuationService:
         if not trimmed_prices or not trimmed_mileages:
             return ValuationResult(estimate=None, comparables=[])
 
-        slope, intercept = self._linear_regression(trimmed_mileages, trimmed_prices)
+        slope, intercept = self._linear_regression(
+            trimmed_mileages, trimmed_prices)
         target_mileage = (
             Decimal(mileage)
             if mileage is not None
             else Decimal(str(mean(trimmed_mileages)))
         )
         estimate_value = intercept + (slope * target_mileage)
+
         estimate = self._round_to_nearest_100(estimate_value)
 
+        closest_rows = sorted(
+            trimmed_rows,
+            key=lambda row: abs(row[0].price - estimate),
+        )[:100]
         comparables = []
-        for listing, vehicle, dealer in trimmed_rows[:100]:
+        for listing, vehicle, dealer in closest_rows:
             label = f"{vehicle.year} {vehicle.make} {vehicle.model}"
             if vehicle.trim:
                 label = f"{label} {vehicle.trim}"

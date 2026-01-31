@@ -43,10 +43,7 @@ def estimate():
         return render_template("search.html", errors=errors, form=form), 400
 
     with get_session(current_app) as session:
-        service = ValuationService(
-            session=session,
-            outlier_trim_pct=current_app.config["OUTLIER_TRIM_PCT"],
-        )
+        service = ValuationService(session=session)
         result = service.estimate_value(
             year=year,
             make=make_raw.strip().upper(),
