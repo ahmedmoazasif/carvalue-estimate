@@ -2,7 +2,7 @@
 
 This repo is a small Flask + PostgreSQL web app that:
 
-1. Imports a pipe-delimited vehicle listings file into Postgres
+1. Loads a pipe-delimited vehicle listings file into Postgres
 2. Provides a simple UI to estimate market value for a Year+Make+Model (optional mileage)
 3. Shows up to 100 comparable listings used in the estimate
 
@@ -47,7 +47,6 @@ Create/maintain this structure:
 │  │  ├─ dealer_repo.py
 │  │  ├─ vehicle_repo.py
 │  ├─ services/
-│  │  ├─ import_service.py
 │  │  ├─ valuation_service.py
 │  ├─ routes/
 │  │  ├─ web.py             # GET /, POST /estimate
@@ -57,12 +56,8 @@ Create/maintain this structure:
 │  ├─ static/
 │  │  └─ styles.css
 │
-├─ scripts/
-│  ├─ import_market_data.py # CLI importer
-│
 ├─ migrations/              # Alembic
 ├─ tests/
-│  ├─ test_import.py
 │  ├─ test_valuation.py
 │  ├─ test_web.py
 │  └─ conftest.py
@@ -82,7 +77,6 @@ Codex: implement config reading these:
 - `DATABASE_URL` (e.g. `postgresql+psycopg3://user:pass@localhost:5432/carvalue`)
 - `FLASK_ENV` (`development` / `production`)
 - `SECRET_KEY` (for Flask session/CSRF if added)
-- `IMPORT_BATCH_SIZE` (default `5000`)
 - `OUTLIER_TRIM_PCT` (default `0.05`)
 - `DEPRECIATION_PER_10K` (default `300`) # $300 per 10,000 miles
 
@@ -104,43 +98,10 @@ Codex: implement config reading these:
 
 ---
 
-## 4) Importer Requirements
+## 4) Data Loading
 
-### Input file
-
-Pipe-delimited `|` with exactly **25** fields:
-
-```
-vin|year|make|model|trim|dealer_name|dealer_street|dealer_city|dealer_state|dealer_zip|listing_price|listing_mileage|used|certified|style|driven_wheels|engine|fuel_type|exterior_color|interior_color|seller_website|first_seen_date|last_seen_date|dealer_vdp_last_seen_date|listing_status
-```
-
-### Parsing rules
-
-- `vin`: strip, uppercase
-- `year`: int
-- `make/model/trim`: strip
-- `price`: numeric (skip if missing/invalid)
-- `mileage`: int (skip if missing/invalid)
-- `used/certified`: normalize bool-ish values (`true/false`, `1/0`, `Y/N`, `yes/no`)
-- dates: parse to `date` if present; else NULL
-- dealer fields: upsert dealer (simple “find or create” by name+address+zip+website)
-
-### Performance rules
-
-- Use batch inserts
-- Commit every `IMPORT_BATCH_SIZE`
-- Keep logs of:
-  - total rows read
-  - inserted rows
-  - skipped rows with reason counts
-
-### CLI
-
-`scripts/import_market_data.py` should support:
-
-- `--file /path/to/inventory.txt`
-- `--dry-run` (no DB writes; just stats)
-- `--limit 10000` (optional for local testing)
+Load the pipe-delimited file into `market_listings_raw` using Postgres `\copy`, then populate
+`vehicles`, `dealers`, and `listings` via the SQL
 
 ---
 
@@ -209,18 +170,13 @@ Codex: implement integration tests (DB required). Use a test DB container or SQL
 
 ### Test cases
 
-1. Import
-   - imports a small sample file
-   - skips rows with invalid price/mileage
-   - creates dealers/vehicles/listings correctly
-
-2. Valuation
+1. Valuation
    - base average correct
    - outlier trimming works
    - mileage adjustment decreases estimate when mileage increases
    - rounding to nearest 100
 
-3. Web
+2. Web
    - `/` returns 200
    - `/estimate` returns 200 for valid inputs
    - shows “no results” for unknown Y/M/M
@@ -252,18 +208,17 @@ If any of these are unknown, Codex should leave TODOs instead of guessing:
 
 1. Add Flask app factory + config + DB wiring
 2. Create SQLAlchemy models + Alembic migrations
-3. Build importer script + minimal logs
-4. Add repo + valuation service
-5. Build web routes + templates
-6. Add tests (import, valuation, web)
-7. Add docker-compose for Postgres + local run instructions
+3. Add repo + valuation service
+4. Build web routes + templates
+5. Add tests (valuation, web)
+6. Add docker-compose for Postgres + local run instructions
 
 ---
 
 ## 11) Definition of Done
 
 - App runs locally with Postgres
-- Imports the full dataset successfully
+- Loads the full dataset successfully
 - UI returns estimate and up to 100 comps
 - Tests pass
 - Code is clean, modular, and matches `DESIGN.md`

@@ -56,13 +56,11 @@ vin|year|make|model|trim|dealer_name|dealer_street|dealer_city|dealer_state|deal
 
 ### 3.2 Ingestion Strategy
 
-1. Read file or url line-by-line using Python
-2. Parse and validate required fields:
-   - year, make, model
-   - listing_price
-   - listing_mileage
-3. Normalize text fields (trim, uppercase make/model)
-4. Insert data into PostgreSQL
+1. Load the file straight into Postgres using `\copy` into a raw staging table (`market_listings_raw`):
+   ```
+   \copy market_listings_raw FROM '/path/to/inventory.txt' WITH (FORMAT csv, DELIMITER '|', HEADER true)
+   ```
+2. Populate `vehicles`, `dealers`, and `listings` from the raw table via SQL. This migration handles trimming/normalization, deduping, and joins for dealer lookup.
 
 ### Why Batch Ingestion?
 
@@ -207,8 +205,6 @@ This approach is:
 
 ### 6.2 Service Layer
 
-- **ImportService**
-  - Parses and inserts data
 - **ListingRepository**
   - Queries comparable listings
 - **ValuationService**
@@ -238,20 +234,14 @@ This approach is:
 
 ## 8. Integration Tests
 
-### 8.1 Data Ingestion
-
-- Valid rows are inserted
-- Rows with missing price/mileage are not skipped
-- Duplicate VINs allowed across listings
-
-### 8.2 Valuation Logic
+### 8.1 Valuation Logic
 
 - Correct average without mileage input
 - Price decreases as mileage increases
 - Outliers excluded
 - Rounding verified
 
-### 8.3 API
+### 8.2 API
 
 - Valid search returns estimate
 - No-result searches handled gracefully
@@ -263,7 +253,6 @@ This approach is:
 
 - Geographic pricing adjustments (state/city)
 - Time-based decay (recent listings weighted higher)
-- Linear regression instead of fixed depreciation
 - Certified vs non-certified price premiums
 - Different years of the same model effect price adjustments.
 

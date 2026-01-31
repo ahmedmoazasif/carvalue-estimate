@@ -10,6 +10,5 @@ class Config:
     )
     FLASK_ENV = os.environ.get("FLASK_ENV", "development")
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret")
-    IMPORT_BATCH_SIZE = int(os.environ.get("IMPORT_BATCH_SIZE", "5000"))
     OUTLIER_TRIM_PCT = float(os.environ.get("OUTLIER_TRIM_PCT", "0.05"))
     DEPRECIATION_PER_10K = int(os.environ.get("DEPRECIATION_PER_10K", "300"))
