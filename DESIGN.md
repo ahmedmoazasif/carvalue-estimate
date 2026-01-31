@@ -257,3 +257,8 @@ This approach is:
 - Different years of the same model effect price adjustments.
 
 ---
+
+## 10. Integration Tests
+
+- Valuations with more than 100 comparables are limited to 100.
+- Valuations with no comparable return no records.
