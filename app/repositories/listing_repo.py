@@ -26,7 +26,6 @@ class ListingRepository:
         make: str,
         model: str,
         limit: Optional[int] = None,
-        listing_statuses: Optional[list[str]] = None,
     ) -> list[Tuple[Listing, Vehicle, Optional[Dealer]]]:
         stmt = (
             select(Listing, Vehicle, Dealer)
@@ -40,10 +39,6 @@ class ListingRepository:
                 Listing.mileage.is_not(None),
             )
         )
-
-        if listing_statuses is not None:
-            # TODO: confirm which listing_status values are considered active
-            stmt = stmt.where(Listing.listing_status.in_(listing_statuses))
 
         if limit is not None:
             stmt = stmt.limit(limit)

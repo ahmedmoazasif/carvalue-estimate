@@ -13,7 +13,7 @@ def seed_listings(session: Session):
     session.add(dealer)
     session.flush()
 
-    for idx, price in enumerate([8000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 30000]):
+    for idx, price in enumerate([30000, 17000, 16000, 15000, 14000, 13000, 12000, 11000, 10000, 9000]):
         vin = f"VIN{idx}"
         vehicle = Vehicle(
             vin=vin,
@@ -45,18 +45,18 @@ def seed_listings(session: Session):
 
 def test_valuation_outlier_trim_and_rounding(session):
     seed_listings(session)
-    service = ValuationService(session=session, outlier_trim_pct=0.1, depreciation_per_10k=300)
+    service = ValuationService(session=session, outlier_trim_pct=0.1)
     result = service.estimate_value(year=2018, make="TOYOTA", model="CAMRY")
 
     assert result.estimate is not None
     # After trimming 10% (1 low + 1 high): average of 8 middle prices
-    expected_avg = Decimal(sum([10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000])) / Decimal(8)
+    expected_avg = Decimal(sum([17000, 16000, 15000, 14000, 13000, 12000, 11000, 10000])) / Decimal(8)
     assert result.estimate == (expected_avg / Decimal(100)).quantize(Decimal("1")) * Decimal(100)
 
 
 def test_mileage_adjustment_decreases_with_higher_mileage(session):
     seed_listings(session)
-    service = ValuationService(session=session, outlier_trim_pct=0.0, depreciation_per_10k=300)
+    service = ValuationService(session=session, outlier_trim_pct=0.0)
     base = service.estimate_value(year=2018, make="TOYOTA", model="CAMRY", mileage=40000).estimate
     higher = service.estimate_value(year=2018, make="TOYOTA", model="CAMRY", mileage=80000).estimate
 

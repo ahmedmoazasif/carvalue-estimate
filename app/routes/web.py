@@ -46,7 +46,6 @@ def estimate():
         service = ValuationService(
             session=session,
             outlier_trim_pct=current_app.config["OUTLIER_TRIM_PCT"],
-            depreciation_per_10k=current_app.config["DEPRECIATION_PER_10K"],
         )
         result = service.estimate_value(
             year=year,

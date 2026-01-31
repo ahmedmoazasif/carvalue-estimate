@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from statistics import mean, median
+from statistics import mean
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -31,11 +31,9 @@ class ValuationService:
         self,
         session: Session,
         outlier_trim_pct: float = 0.05,
-        depreciation_per_10k: int = 300,
     ):
         self.session = session
         self.outlier_trim_pct = outlier_trim_pct
-        self.depreciation_per_10k = depreciation_per_10k
         self.repo = ListingRepository(session)
 
     @staticmethod
@@ -53,19 +51,39 @@ class ValuationService:
     def _round_to_nearest_100(value: Decimal) -> Decimal:
         return (value / Decimal("100")).quantize(Decimal("1")) * Decimal("100")
 
+    @staticmethod
+    def _linear_regression(
+        mileages: list[int], prices: list[Decimal]
+    ) -> tuple[Decimal, Decimal]:
+        if not mileages or not prices or len(mileages) != len(prices):
+            raise ValueError("Mileage and price lists must be the same length.")
+
+        n = Decimal(len(mileages))
+        sum_x = Decimal(sum(mileages))
+        sum_y = sum(prices, Decimal("0"))
+        sum_xx = sum(Decimal(mileage) * Decimal(mileage) for mileage in mileages)
+        sum_xy = sum(
+            Decimal(mileage) * price for mileage, price in zip(mileages, prices)
+        )
+        denom = (n * sum_xx) - (sum_x * sum_x)
+        if denom == 0:
+            slope = Decimal("0")
+        else:
+            slope = ((n * sum_xy) - (sum_x * sum_y)) / denom
+        intercept = (sum_y - (slope * sum_x)) / n
+        return slope, intercept
+
     def estimate_value(
         self,
         year: int,
         make: str,
         model: str,
         mileage: Optional[int] = None,
-        listing_statuses: Optional[list[str]] = None,
     ) -> ValuationResult:
         rows = self.repo.get_comparables(
             year=year,
             make=make,
             model=model,
-            listing_statuses=listing_statuses,
         )
         if not rows:
             return ValuationResult(estimate=None, comparables=[])
@@ -75,23 +93,24 @@ class ValuationService:
         if not trimmed_rows:
             return ValuationResult(estimate=None, comparables=[])
 
-        trimmed_prices = [row[0].price for row in trimmed_rows if row[0].price is not None]
-        base_estimate = Decimal(str(mean(trimmed_prices)))
-        adjusted_estimate = base_estimate
+        trimmed_prices = [
+            row[0].price for row in trimmed_rows if row[0].price is not None
+        ]
+        trimmed_mileages = [
+            row[0].mileage for row in trimmed_rows if row[0].mileage is not None
+        ]
 
-        if mileage is not None:
-            mileages = sorted(
-                row[0].mileage for row in trimmed_rows if row[0].mileage is not None
-            )
-            if mileages:
-                median_mileage = median(mileages)
-                delta = mileage - int(median_mileage)
-                adjustment = (Decimal(delta) / Decimal("10000")) * Decimal(
-                    self.depreciation_per_10k
-                )
-                adjusted_estimate = base_estimate - adjustment
+        if not trimmed_prices or not trimmed_mileages:
+            return ValuationResult(estimate=None, comparables=[])
 
-        estimate = self._round_to_nearest_100(adjusted_estimate)
+        slope, intercept = self._linear_regression(trimmed_mileages, trimmed_prices)
+        target_mileage = (
+            Decimal(mileage)
+            if mileage is not None
+            else Decimal(str(mean(trimmed_mileages)))
+        )
+        estimate_value = intercept + (slope * target_mileage)
+        estimate = self._round_to_nearest_100(estimate_value)
 
         comparables = []
         for listing, vehicle, dealer in trimmed_rows[:100]:

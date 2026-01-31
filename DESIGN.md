@@ -151,10 +151,11 @@ To ensure fast queries:
    - Same model
 2. Remove outliers:
    - Top and bottom 5–10% by price
-3. Compute the **average price**
-4. Round result to the nearest \$100
+3. Fit a **linear regression** of price vs. mileage on the trimmed set
+4. Predict price at the **mean mileage** of the trimmed set
+5. Round result to the nearest \$100
 
-This satisfies the requirement that market value is derived from the **average of similar cars**.
+This preserves the requirement that market value is derived from **comparable listings**, while using mileage to shape the trend.
 
 ---
 
@@ -164,20 +165,15 @@ Mileage has a **negative correlation with price**.
 
 #### Steps
 
-1. Calculate median mileage of comparable listings
-2. Compute mileage delta:
+1. Use the same trimmed set of comparable listings
+2. Fit a linear regression:
    ```
-   delta = input_mileage - median_listing_mileage
+   price = intercept + slope * mileage
    ```
-3. Apply depreciation factor:
-   ```
-   adjustment = (delta / 10,000) * depreciation_rate
-   ```
-   Example:
-   - \$300 per 10,000 miles
-4. Adjust base price:
-   `    adjusted_price = base_average - adjustment`
-   This approach is:
+3. Predict price at the **input mileage**
+4. Round result to the nearest \$100
+
+This approach is:
 
 - Simple
 - Explainable
@@ -216,8 +212,8 @@ Mileage has a **negative correlation with price**.
 - **ListingRepository**
   - Queries comparable listings
 - **ValuationService**
-  - Computes base average
-  - Applies mileage adjustment
+  - Fits regression on trimmed comps
+  - Predicts at input/mean mileage
   - Handles rounding and filtering
 
 ---
